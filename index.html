@@ -110,9 +110,9 @@
     </div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        // FIXED: Added useMemo to the import
+        const { useState, useEffect, useCallback, useMemo } = React;
         
-        // App configuration - unique prefix to avoid conflicts
         const APP_PREFIX = 'cranelogger_v2_';
         
         const Icons = {
@@ -135,7 +135,6 @@
             Check: () => <i data-lucide="check" className="w-5 h-5"></i>,
         };
 
-        // Toast notification component
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => {
                 const timer = setTimeout(onClose, 3000);
@@ -154,7 +153,6 @@
             );
         };
 
-        // Safe localStorage wrapper with error handling
         const safeStorage = {
             get: (key, defaultValue = null) => {
                 try {
@@ -171,7 +169,6 @@
                     return true;
                 } catch (e) {
                     console.error('Storage set error:', e);
-                    // Check if quota exceeded
                     if (e.name === 'QuotaExceededError') {
                         alert('Storage full! Please delete some old cranes or events.');
                     }
@@ -187,17 +184,14 @@
             }
         };
 
-        // Database Service
         const DB = {
             users: safeStorage.get('users', []),
             currentUser: safeStorage.get('current_user', null),
             
             login: (email, password) => {
-                // Normalize email
                 const normalizedEmail = email.toLowerCase().trim();
                 const user = DB.users.find(u => u.email.toLowerCase() === normalizedEmail && u.password === password);
                 if (user) {
-                    // Create session without password
                     const sessionUser = { id: user.id, email: user.email, name: user.name || user.email };
                     safeStorage.set('current_user', sessionUser);
                     DB.currentUser = sessionUser;
@@ -246,7 +240,6 @@
                 return safeStorage.set('data', allData);
             },
 
-            // Debug function
             getStats: () => {
                 const data = safeStorage.get('data', {});
                 const craneCount = Object.values(data).reduce((acc, userData) => acc + (userData.cranes?.length || 0), 0);
@@ -306,7 +299,6 @@
         );
 
         const App = () => {
-            // Initialize state from DB safely
             const [user, setUser] = useState(() => DB.currentUser);
             const [authMode, setAuthMode] = useState('login');
             const [authForm, setAuthForm] = useState({ email: '', password: '' });
@@ -317,29 +309,24 @@
             const [isLoading, setIsLoading] = useState(true);
             const [toast, setToast] = useState(null);
             
-            // Modal states
             const [isCraneModalOpen, setIsCraneModalOpen] = useState(false);
             const [isEventModalOpen, setIsEventModalOpen] = useState(false);
             const [isEditingCrane, setIsEditingCrane] = useState(false);
             const [isEditingEvent, setIsEditingEvent] = useState(false);
             const [editingEventId, setEditingEventId] = useState(null);
             
-            // UI states
             const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
             const [showMaintenance, setShowMaintenance] = useState(true);
             const [showBreakdowns, setShowBreakdowns] = useState(true);
             
-            // Form states
             const [craneForm, setCraneForm] = useState({});
             const [eventForm, setEventForm] = useState({});
 
-            // Load data when user changes
             useEffect(() => {
                 lucide.createIcons();
                 
                 if (user) {
                     setIsLoading(true);
-                    // Small delay to ensure storage is ready
                     setTimeout(() => {
                         const data = DB.getCranes(user.id);
                         setCranes(data);
@@ -351,7 +338,6 @@
                 }
             }, [user]);
 
-            // Re-render icons when content changes
             useEffect(() => {
                 lucide.createIcons();
             }, [cranes, selectedCrane, isCraneModalOpen, isEventModalOpen]);
@@ -553,7 +539,6 @@
                 setIsEventModalOpen(true);
             };
 
-            // Filter cranes
             const filteredCranes = useMemo(() => {
                 const term = searchTerm.toLowerCase().trim();
                 if (!term) return cranes;
@@ -564,7 +549,6 @@
                 );
             }, [cranes, searchTerm]);
 
-            // Filter and sort events
             const filteredEvents = useMemo(() => {
                 if (!selectedCrane?.events) return [];
                 return selectedCrane.events
@@ -575,14 +559,6 @@
                     })
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             }, [selectedCrane, showMaintenance, showBreakdowns]);
-
-            // Debug info
-            const debugInfo = () => {
-                const stats = DB.getStats();
-                console.log('Debug Stats:', stats);
-                console.log('Current User:', user);
-                console.log('Cranes in state:', cranes.length);
-            };
 
             if (isLoading) {
                 return (
@@ -656,7 +632,6 @@
                                 </button>
                             </div>
 
-                            {/* Demo credentials hint */}
                             <div className="mt-6 pt-4 border-t border-industrial-700/50 text-center">
                                 <p className="text-xs text-gray-500 mb-2">Demo Account:</p>
                                 <p className="text-xs text-gray-600 font-mono">demo@crane.com / demo123</p>
@@ -670,7 +645,6 @@
 
             return (
                 <div className="flex h-screen bg-industrial-900 text-gray-200 overflow-hidden">
-                    {/* Sidebar */}
                     <aside className="w-80 bg-industrial-800 border-r border-industrial-700 flex flex-col shadow-xl z-20">
                         <div className="p-6 border-b border-industrial-700">
                             <div className="flex items-center gap-3 mb-1">
@@ -755,7 +729,6 @@
                         </div>
                     </aside>
 
-                    {/* Main Content */}
                     <main className="flex-1 flex flex-col h-full overflow-hidden">
                         {!selectedCrane ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8">
@@ -772,7 +745,6 @@
                             </div>
                         ) : (
                             <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-                                {/* Header */}
                                 <header className="bg-industrial-800/80 backdrop-blur-md border-b border-industrial-700 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-3 mb-1 flex-wrap">
@@ -797,11 +769,9 @@
                                     </div>
                                 </header>
 
-                                {/* Content Grid */}
                                 <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                                         
-                                        {/* Left: Specs */}
                                         <div className="lg:col-span-1 space-y-6">
                                             <div className="glass-panel rounded-xl p-6 border border-industrial-700">
                                                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 border-b border-industrial-700 pb-2">
@@ -846,7 +816,6 @@
                                             </div>
                                         </div>
 
-                                        {/* Right: History */}
                                         <div className="lg:col-span-2 space-y-6">
                                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -905,7 +874,6 @@
                         )}
                     </main>
 
-                    {/* Modals */}
                     {isCraneModalOpen && (
                         <Modal onClose={() => setIsCraneModalOpen(false)} title={isEditingCrane ? 'Edit Crane Specifications' : 'Register New Crane'}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
@@ -1004,7 +972,6 @@
             return (
                 <div className="glass-panel rounded-xl overflow-hidden border-l-4 transition-all hover:translate-x-1 duration-200 group" style={{ borderLeftColor: isBreakdown ? '#ef4444' : '#3b82f6' }}>
                     <div className="p-4 flex flex-col sm:flex-row gap-4">
-                        {/* Icon & Date Block */}
                         <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:w-32 shrink-0">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isBreakdown ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
                                 {isBreakdown ? <Icons.AlertTriangle /> : <Icons.Wrench />}
@@ -1020,7 +987,6 @@
                             </div>
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start gap-2 mb-2">
                                 <h4 className={`font-bold text-lg ${isBreakdown ? 'text-red-400' : 'text-blue-400'}`}>
