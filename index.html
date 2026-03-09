@@ -3,308 +3,1060 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crane EOCR Status Tracker</title>
+    <title>CraneLogger Pro | Industrial Maintenance System</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        industrial: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569',
+                            accent: '#3b82f6',
+                            danger: '#ef4444',
+                            warning: '#f59e0b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --border-color: #bdc3c7;
-            --bg-light: #f8f9fa;
-            --status-avl: #d4edda; /* Light Green */
-            --status-na: #f8d7da; /* Light Red */
-            --status-ne: #e2e3e5; /* Grey */
-        }
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400&display=swap');
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f4f7f6;
+            background-color: #0f172a;
+            color: #e2e8f0;
         }
 
-        h1 {
-            text-align: center;
-            color: var(--primary-color);
-            margin-bottom: 20px;
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .controls {
-            margin-bottom: 15px;
-            text-align: right;
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
         }
 
-        button {
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 14px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        button:hover {
-            background-color: #219150;
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
         }
 
-        .table-container {
-            overflow-x: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            background: white;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
             border-radius: 8px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1200px; /* Ensures table doesn't squish on small screens */
-            font-size: 13px;
-        }
-
-        th, td {
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            text-align: center;
-        }
-
-        th {
-            background-color: var(--primary-color);
             color: white;
-            font-weight: 600;
+            font-weight: 500;
+            z-index: 100;
+            animation: slideIn 0.3s ease-out;
         }
 
-        /* Sub-headers style */
-        .sub-header {
-            background-color: #34495e;
-            font-size: 0.9em;
-        }
-
-        /* Input Styles */
-        select {
-            width: 100%;
-            padding: 4px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            background: transparent;
-            cursor: pointer;
-        }
-
-        /* Row Styles */
-        tr:nth-child(even) {
-            background-color: #fcfcfc;
-        }
-
-        /* Fixed Column for Crane Name */
-        td.crane-name {
-            font-weight: bold;
-            background-color: #ecf0f1;
-            position: sticky;
-            left: 0;
-            z-index: 1;
-        }
-
-        /* Status Colors classes */
-        .status-avl { background-color: var(--status-avl) !important; color: #155724; }
-        .status-na { background-color: var(--status-na) !important; color: #721c24; }
-        .status-ne { background-color: var(--status-ne) !important; color: #383d41; pointer-events: none; }
-
-        .legend {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #666;
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     </style>
 </head>
 <body>
-
-    <h1>NON HOT METAL CRANE EOCR STATUS</h1>
-
-    <div class="controls">
-        <button onclick="clearData()">Reset Data</button>
-        <button onclick="exportTableToCSV('crane_status.csv')">Export to Excel (CSV)</button>
+    <div id="root">
+        <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;">
+            <div class="loader"></div>
+        </div>
     </div>
 
-    <div class="table-container">
-        <table id="craneTable">
-            <thead>
-                <tr>
-                    <th rowspan="2">SI No</th>
-                    <th rowspan="2">Crane Name</th>
-                    <th rowspan="2">About</th>
-                    <th colspan="2">MH-1</th>
-                    <th colspan="2">MH-2</th>
-                    <th colspan="2">MH EMG BRAKES</th>
-                    <th colspan="2">AH</th>
-                    <th colspan="2">LT-1</th>
-                    <th colspan="2">LT-2</th>
-                    <th colspan="2">MCT</th>
-                    <th colspan="2">ACT</th>
-                </tr>
-                <tr class="sub-header">
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                    <th>THRUS-1</th><th>THRUS-2</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                </tbody>
-        </table>
-    </div>
-
-    <div class="legend">
-        <strong>Status Key:</strong> AVL = Available (Green), N.A = Not Available (Red), N.C = Available but Not In Service, N.E = Not Exist (Grey)
-    </div>
-
-    <script>
-        // Data Configuration based on your image
-        const cranes = [
-            { id: 1, name: 'DE 1' },
-            { id: 2, name: 'DE 2' },
-            { id: 3, name: 'LANCE' },
-            { id: 4, name: 'KL-01' },
-            { id: 5, name: 'KL-02' },
-            { id: 6, name: 'LM' },
-            { id: 7, name: 'MN-1' },
-            { id: 8, name: 'MN-2' },
-            { id: 9, name: 'MN-3' },
-            { id: 10, name: 'NP-1' },
-            { id: 11, name: 'NP-2' },
-            { id: 12, name: 'NP-3' },
-            { id: 13, name: 'HT' },
-            { id: 14, name: 'FK' },
-            { id: 15, name: 'KL' }
-        ];
-
-        // Column structure (16 data columns total)
-        const columns = 16; 
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
         
-        // Options for the dropdowns
-        const statusOptions = ["", "AVL", "N.A", "N.C", "N.E", "Done"];
+        // App configuration - unique prefix to avoid conflicts
+        const APP_PREFIX = 'cranelogger_v2_';
+        
+        const Icons = {
+            Plus: () => <i data-lucide="plus" className="w-5 h-5"></i>,
+            X: () => <i data-lucide="x" className="w-5 h-5"></i>,
+            Wrench: () => <i data-lucide="wrench" className="w-5 h-5"></i>,
+            AlertTriangle: () => <i data-lucide="alert-triangle" className="w-5 h-5"></i>,
+            FileText: () => <i data-lucide="file-text" className="w-5 h-5"></i>,
+            Save: () => <i data-lucide="save" className="w-5 h-5"></i>,
+            Trash2: () => <i data-lucide="trash-2" className="w-5 h-5"></i>,
+            Edit2: () => <i data-lucide="edit-2" className="w-5 h-5"></i>,
+            ChevronDown: () => <i data-lucide="chevron-down" className="w-5 h-5"></i>,
+            ChevronUp: () => <i data-lucide="chevron-up" className="w-5 h-5"></i>,
+            Search: () => <i data-lucide="search" className="w-5 h-5"></i>,
+            LogOut: () => <i data-lucide="log-out" className="w-5 h-5"></i>,
+            User: () => <i data-lucide="user" className="w-5 h-5"></i>,
+            Lock: () => <i data-lucide="lock" className="w-5 h-5"></i>,
+            Activity: () => <i data-lucide="activity" className="w-5 h-5"></i>,
+            Clock: () => <i data-lucide="clock" className="w-5 h-5"></i>,
+            Check: () => <i data-lucide="check" className="w-5 h-5"></i>,
+        };
 
-        function initTable() {
-            const tbody = document.getElementById('tableBody');
-            let savedData = JSON.parse(localStorage.getItem('craneData')) || {};
+        // Toast notification component
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
 
-            cranes.forEach(crane => {
-                // Row 1: Status
-                let rowStatus = document.createElement('tr');
-                
-                // Static Cells (SI, Name, About)
-                rowStatus.innerHTML = `
-                    <td rowspan="2">${crane.id}</td>
-                    <td rowspan="2" class="crane-name">${crane.name}</td>
-                    <td><strong>STATUS</strong></td>
-                `;
+            const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            
+            return (
+                <div className={`toast ${bgColor} shadow-lg`}>
+                    <div className="flex items-center gap-2">
+                        {type === 'success' && <Icons.Check />}
+                        {message}
+                    </div>
+                </div>
+            );
+        };
 
-                // Row 2: Setting
-                let rowSetting = document.createElement('tr');
-                rowSetting.innerHTML = `<td>SETTING</td>`;
-
-                // generate input cells
-                for (let i = 0; i < columns; i++) {
-                    const cellKeyStatus = `c${crane.id}_col${i}_stat`;
-                    const cellKeySetting = `c${crane.id}_col${i}_set`;
-
-                    // Status Cell
-                    let tdStatus = document.createElement('td');
-                    let selectStatus = createSelect(cellKeyStatus, savedData[cellKeyStatus]);
-                    tdStatus.appendChild(selectStatus);
-                    updateColor(selectStatus); // Set initial color
-                    rowStatus.appendChild(tdStatus);
-
-                    // Setting Cell
-                    let tdSetting = document.createElement('td');
-                    let selectSetting = createSelect(cellKeySetting, savedData[cellKeySetting]);
-                    tdSetting.appendChild(selectSetting);
-                    updateColor(selectSetting); // Set initial color
-                    rowSetting.appendChild(tdSetting);
+        // Safe localStorage wrapper with error handling
+        const safeStorage = {
+            get: (key, defaultValue = null) => {
+                try {
+                    const item = localStorage.getItem(APP_PREFIX + key);
+                    return item ? JSON.parse(item) : defaultValue;
+                } catch (e) {
+                    console.error('Storage get error:', e);
+                    return defaultValue;
                 }
-
-                tbody.appendChild(rowStatus);
-                tbody.appendChild(rowSetting);
-            });
-        }
-
-        function createSelect(id, value) {
-            let select = document.createElement('select');
-            select.id = id;
-            
-            statusOptions.forEach(opt => {
-                let option = document.createElement('option');
-                option.value = opt;
-                option.text = opt === "" ? "-" : opt;
-                if (opt === value) option.selected = true;
-                select.appendChild(option);
-            });
-
-            // Add event listener for change
-            select.addEventListener('change', (e) => {
-                saveData(id, e.target.value);
-                updateColor(e.target);
-            });
-
-            return select;
-        }
-
-        function updateColor(element) {
-            const val = element.value;
-            const parent = element.parentElement;
-            
-            // Reset classes
-            parent.className = '';
-            
-            if (val === 'AVL' || val === 'Done') parent.classList.add('status-avl');
-            else if (val === 'N.A') parent.classList.add('status-na');
-            else if (val === 'N.E') parent.classList.add('status-ne');
-        }
-
-        function saveData(key, value) {
-            let data = JSON.parse(localStorage.getItem('craneData')) || {};
-            data[key] = value;
-            localStorage.setItem('craneData', JSON.stringify(data));
-        }
-
-        function clearData() {
-            if(confirm("Are you sure you want to clear all data?")) {
-                localStorage.removeItem('craneData');
-                location.reload();
-            }
-        }
-
-        function exportTableToCSV(filename) {
-            let csv = [];
-            let rows = document.querySelectorAll("table tr");
-            
-            for (let i = 0; i < rows.length; i++) {
-                let row = [], cols = rows[i].querySelectorAll("td, th");
-                
-                for (let j = 0; j < cols.length; j++) {
-                    // Check if it has a select dropdown
-                    let select = cols[j].querySelector("select");
-                    if(select) {
-                        row.push(select.value);
-                    } else {
-                        row.push(cols[j].innerText.replace(/\n/g, ""));
+            },
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(APP_PREFIX + key, JSON.stringify(value));
+                    return true;
+                } catch (e) {
+                    console.error('Storage set error:', e);
+                    // Check if quota exceeded
+                    if (e.name === 'QuotaExceededError') {
+                        alert('Storage full! Please delete some old cranes or events.');
                     }
+                    return false;
                 }
-                csv.push(row.join(","));        
+            },
+            remove: (key) => {
+                try {
+                    localStorage.removeItem(APP_PREFIX + key);
+                } catch (e) {
+                    console.error('Storage remove error:', e);
+                }
+            }
+        };
+
+        // Database Service
+        const DB = {
+            users: safeStorage.get('users', []),
+            currentUser: safeStorage.get('current_user', null),
+            
+            login: (email, password) => {
+                // Normalize email
+                const normalizedEmail = email.toLowerCase().trim();
+                const user = DB.users.find(u => u.email.toLowerCase() === normalizedEmail && u.password === password);
+                if (user) {
+                    // Create session without password
+                    const sessionUser = { id: user.id, email: user.email, name: user.name || user.email };
+                    safeStorage.set('current_user', sessionUser);
+                    DB.currentUser = sessionUser;
+                    return { success: true, user: sessionUser };
+                }
+                return { success: false, error: "Invalid email or password" };
+            },
+            
+            register: (email, password) => {
+                const normalizedEmail = email.toLowerCase().trim();
+                if (DB.users.find(u => u.email.toLowerCase() === normalizedEmail)) {
+                    return { success: false, error: "Account already exists. Please login." };
+                }
+                const newUser = { 
+                    id: 'user_' + Date.now().toString(36), 
+                    email: normalizedEmail, 
+                    password,
+                    createdAt: new Date().toISOString()
+                };
+                DB.users.push(newUser);
+                safeStorage.set('users', DB.users);
+                
+                const sessionUser = { id: newUser.id, email: newUser.email };
+                safeStorage.set('current_user', sessionUser);
+                DB.currentUser = sessionUser;
+                return { success: true, user: sessionUser };
+            },
+
+            logout: () => {
+                safeStorage.remove('current_user');
+                DB.currentUser = null;
+            },
+
+            getCranes: (userId) => {
+                if (!userId) return [];
+                const allData = safeStorage.get('data', {});
+                return allData[userId]?.cranes || [];
+            },
+
+            saveCranes: (userId, cranes) => {
+                if (!userId) return false;
+                const allData = safeStorage.get('data', {});
+                if (!allData[userId]) allData[userId] = {};
+                allData[userId].cranes = cranes;
+                allData[userId].lastUpdated = new Date().toISOString();
+                return safeStorage.set('data', allData);
+            },
+
+            // Debug function
+            getStats: () => {
+                const data = safeStorage.get('data', {});
+                const craneCount = Object.values(data).reduce((acc, userData) => acc + (userData.cranes?.length || 0), 0);
+                return { users: DB.users.length, cranes: craneCount };
+            }
+        };
+
+        const Button = ({ onClick, children, variant = 'primary', className = '', disabled = false, type = 'button' }) => {
+            const baseStyle = "flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-industrial-900 disabled:opacity-50 disabled:cursor-not-allowed";
+            const variants = {
+                primary: 'bg-industrial-accent text-white hover:bg-blue-600 focus:ring-blue-500 shadow-lg shadow-blue-500/20',
+                secondary: 'bg-industrial-700 text-gray-200 hover:bg-industrial-600 focus:ring-gray-500 border border-industrial-600',
+                danger: 'bg-red-600/20 text-red-400 border border-red-600/50 hover:bg-red-600/30 focus:ring-red-500',
+                ghost: 'bg-transparent text-gray-400 hover:text-white hover:bg-white/5',
+            };
+            return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
+        };
+
+        const Modal = ({ children, onClose, title }) => (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4" onClick={onClose}>
+                <div className="glass-panel w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center p-5 border-b border-industrial-700 bg-industrial-800/50">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Icons.FileText /> {title}</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"><Icons.X /></button>
+                    </div>
+                    <div className="p-6 overflow-y-auto">{children}</div>
+                </div>
+            </div>
+        );
+
+        const Input = ({ label, id, value, onChange, type = 'text', placeholder, required = false }) => (
+            <div className="mb-4">
+                <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">{label}{required && <span className="text-red-400 ml-1">*</span>}</label>
+                <input type={type} id={id} value={value} onChange={onChange} placeholder={placeholder} required={required}
+                    className="w-full bg-industrial-900 border border-industrial-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-industrial-accent focus:ring-1 focus:ring-industrial-accent transition-all" />
+            </div>
+        );
+
+        const Textarea = ({ label, id, value, onChange, placeholder, rows = 3 }) => (
+            <div className="mb-4">
+                <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">{label}</label>
+                <textarea id={id} value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+                    className="w-full bg-industrial-900 border border-industrial-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-industrial-accent focus:ring-1 focus:ring-industrial-accent transition-all resize-y" />
+            </div>
+        );
+
+        const Select = ({ label, id, value, onChange, children, required = false }) => (
+            <div className="mb-4">
+                <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">{label}{required && <span className="text-red-400 ml-1">*</span>}</label>
+                <div className="relative">
+                    <select id={id} value={value} onChange={onChange} required={required} className="w-full bg-industrial-900 border border-industrial-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-industrial-accent appearance-none">
+                        {children}
+                    </select>
+                    <div className="absolute right-3 top-3 pointer-events-none text-gray-500"><Icons.ChevronDown /></div>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            // Initialize state from DB safely
+            const [user, setUser] = useState(() => DB.currentUser);
+            const [authMode, setAuthMode] = useState('login');
+            const [authForm, setAuthForm] = useState({ email: '', password: '' });
+            const [authError, setAuthError] = useState('');
+            const [cranes, setCranes] = useState([]);
+            const [selectedCrane, setSelectedCrane] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [isLoading, setIsLoading] = useState(true);
+            const [toast, setToast] = useState(null);
+            
+            // Modal states
+            const [isCraneModalOpen, setIsCraneModalOpen] = useState(false);
+            const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+            const [isEditingCrane, setIsEditingCrane] = useState(false);
+            const [isEditingEvent, setIsEditingEvent] = useState(false);
+            const [editingEventId, setEditingEventId] = useState(null);
+            
+            // UI states
+            const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+            const [showMaintenance, setShowMaintenance] = useState(true);
+            const [showBreakdowns, setShowBreakdowns] = useState(true);
+            
+            // Form states
+            const [craneForm, setCraneForm] = useState({});
+            const [eventForm, setEventForm] = useState({});
+
+            // Load data when user changes
+            useEffect(() => {
+                lucide.createIcons();
+                
+                if (user) {
+                    setIsLoading(true);
+                    // Small delay to ensure storage is ready
+                    setTimeout(() => {
+                        const data = DB.getCranes(user.id);
+                        setCranes(data);
+                        setIsLoading(false);
+                        console.log('Loaded cranes for user:', user.id, data.length);
+                    }, 100);
+                } else {
+                    setIsLoading(false);
+                }
+            }, [user]);
+
+            // Re-render icons when content changes
+            useEffect(() => {
+                lucide.createIcons();
+            }, [cranes, selectedCrane, isCraneModalOpen, isEventModalOpen]);
+
+            const showToast = (message, type = 'success') => {
+                setToast({ message, type });
+            };
+
+            const handleAuth = (e) => {
+                e.preventDefault();
+                setAuthError('');
+                
+                if (!authForm.email || !authForm.password) {
+                    setAuthError('Please enter both email and password');
+                    return;
+                }
+
+                const result = authMode === 'login' 
+                    ? DB.login(authForm.email, authForm.password)
+                    : DB.register(authForm.email, authForm.password);
+                
+                if (result.success) {
+                    setUser(result.user);
+                    showToast(authMode === 'login' ? 'Welcome back!' : 'Account created successfully!');
+                    setAuthForm({ email: '', password: '' });
+                } else {
+                    setAuthError(result.error);
+                }
+            };
+
+            const handleLogout = () => {
+                DB.logout();
+                setUser(null);
+                setCranes([]);
+                setSelectedCrane(null);
+                showToast('Logged out successfully');
+            };
+
+            const saveCranesData = useCallback((newCranes) => {
+                if (!user?.id) {
+                    console.error('No user ID available');
+                    return false;
+                }
+                
+                const success = DB.saveCranes(user.id, newCranes);
+                if (success) {
+                    setCranes(newCranes);
+                    return true;
+                } else {
+                    showToast('Failed to save data', 'error');
+                    return false;
+                }
+            }, [user]);
+
+            const handleSaveCrane = () => {
+                if (!craneForm.name?.trim()) {
+                    alert("Crane Name is required");
+                    return;
+                }
+
+                let newCranes;
+                if (isEditingCrane) {
+                    newCranes = cranes.map(c => c.id === craneForm.id ? { ...craneForm, updatedAt: new Date().toISOString() } : c);
+                } else {
+                    const newCrane = { 
+                        ...craneForm, 
+                        id: 'crane_' + Date.now().toString(36), 
+                        events: [],
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    newCranes = [...cranes, newCrane];
+                }
+                
+                if (saveCranesData(newCranes)) {
+                    setIsCraneModalOpen(false);
+                    if (isEditingCrane) {
+                        setSelectedCrane(newCranes.find(c => c.id === craneForm.id));
+                    }
+                    showToast(isEditingCrane ? 'Crane updated!' : 'New crane added!');
+                }
+            };
+
+            const handleDeleteCrane = (id) => {
+                if (!confirm("⚠️ WARNING: This will delete the crane and ALL its history forever. Continue?")) return;
+                
+                const newCranes = cranes.filter(c => c.id !== id);
+                if (saveCranesData(newCranes)) {
+                    if (selectedCrane?.id === id) setSelectedCrane(null);
+                    setIsCraneModalOpen(false);
+                    showToast('Crane deleted');
+                }
+            };
+
+            const handleSaveEvent = () => {
+                if (!eventForm.description?.trim()) {
+                    alert("Description is required");
+                    return;
+                }
+                if (!eventForm.shift) {
+                    alert("Please select a shift");
+                    return;
+                }
+
+                const timestamp = new Date(`${eventForm.date}T${eventForm.time}`).toISOString();
+                
+                const newEvent = {
+                    id: isEditingEvent ? editingEventId : 'evt_' + Date.now().toString(36),
+                    type: eventForm.type,
+                    timestamp,
+                    shift: eventForm.shift,
+                    description: eventForm.description.trim(),
+                    resolution: eventForm.resolution?.trim() || '',
+                    updatedAt: new Date().toISOString()
+                };
+
+                const updatedCranes = cranes.map(c => {
+                    if (c.id === selectedCrane.id) {
+                        let newEvents;
+                        if (isEditingEvent) {
+                            newEvents = c.events.map(e => e.id === editingEventId ? newEvent : e);
+                        } else {
+                            newEvents = [newEvent, ...(c.events || [])];
+                        }
+                        return { ...c, events: newEvents, updatedAt: new Date().toISOString() };
+                    }
+                    return c;
+                });
+
+                if (saveCranesData(updatedCranes)) {
+                    const updatedSelected = updatedCranes.find(c => c.id === selectedCrane.id);
+                    setSelectedCrane(updatedSelected);
+                    setIsEventModalOpen(false);
+                    showToast(isEditingEvent ? 'Event updated!' : 'Event logged!');
+                }
+            };
+
+            const handleDeleteEvent = () => {
+                if (!confirm("Delete this event log?")) return;
+                
+                const updatedCranes = cranes.map(c => {
+                    if (c.id === selectedCrane.id) {
+                        return { 
+                            ...c, 
+                            events: c.events.filter(e => e.id !== editingEventId),
+                            updatedAt: new Date().toISOString()
+                        };
+                    }
+                    return c;
+                });
+
+                if (saveCranesData(updatedCranes)) {
+                    setSelectedCrane(updatedCranes.find(c => c.id === selectedCrane.id));
+                    setIsEventModalOpen(false);
+                    showToast('Event deleted');
+                }
+            };
+
+            const openCraneModal = (crane = null) => {
+                setAuthError('');
+                if (crane) {
+                    setIsEditingCrane(true);
+                    setCraneForm({ ...crane });
+                } else {
+                    setIsEditingCrane(false);
+                    setCraneForm({
+                        name: '', craneType: '', motionType: '', rating: '', make: '',
+                        motorDriveData: '', plcData: '', maintenanceSchedule: '', lubricationSchedule: '', otherNotes: ''
+                    });
+                }
+                setIsCraneModalOpen(true);
+            };
+
+            const openEventModal = (event = null) => {
+                setIsEditingEvent(!!event);
+                if (event) {
+                    setEditingEventId(event.id);
+                    const d = new Date(event.timestamp);
+                    setEventForm({
+                        type: event.type,
+                        date: d.toISOString().split('T')[0],
+                        time: d.toTimeString().substring(0,5),
+                        shift: event.shift,
+                        description: event.description,
+                        resolution: event.resolution || ''
+                    });
+                } else {
+                    setEditingEventId(null);
+                    const n = new Date();
+                    setEventForm({
+                        type: 'breakdown',
+                        date: n.toISOString().split('T')[0],
+                        time: n.toTimeString().substring(0,5),
+                        shift: '',
+                        description: '',
+                        resolution: ''
+                    });
+                }
+                setIsEventModalOpen(true);
+            };
+
+            // Filter cranes
+            const filteredCranes = useMemo(() => {
+                const term = searchTerm.toLowerCase().trim();
+                if (!term) return cranes;
+                return cranes.filter(c => 
+                    c.name?.toLowerCase().includes(term) || 
+                    c.make?.toLowerCase().includes(term) ||
+                    c.craneType?.toLowerCase().includes(term)
+                );
+            }, [cranes, searchTerm]);
+
+            // Filter and sort events
+            const filteredEvents = useMemo(() => {
+                if (!selectedCrane?.events) return [];
+                return selectedCrane.events
+                    .filter(e => {
+                        if (e.type === 'maintenance' && !showMaintenance) return false;
+                        if (e.type === 'breakdown' && !showBreakdowns) return false;
+                        return true;
+                    })
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }, [selectedCrane, showMaintenance, showBreakdowns]);
+
+            // Debug info
+            const debugInfo = () => {
+                const stats = DB.getStats();
+                console.log('Debug Stats:', stats);
+                console.log('Current User:', user);
+                console.log('Cranes in state:', cranes.length);
+            };
+
+            if (isLoading) {
+                return (
+                    <div className="flex items-center justify-center h-screen bg-industrial-900">
+                        <div className="text-center">
+                            <div className="loader mx-auto mb-4"></div>
+                            <p className="text-gray-400">Loading CraneLogger...</p>
+                        </div>
+                    </div>
+                );
             }
 
-            // Download CSV
-            let csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
-            let downloadLink = document.createElement("a");
-            downloadLink.download = filename;
-            downloadLink.href = window.URL.createObjectURL(csvFile);
-            downloadLink.style.display = "none";
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-        }
+            if (!user) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center relative">
+                        <div className="absolute inset-0 bg-industrial-900/90"></div>
+                        <div className="relative z-10 glass-panel p-8 rounded-2xl w-full max-w-md shadow-2xl border border-industrial-600 m-4">
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 bg-industrial-accent rounded-xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
+                                    <Icons.Activity />
+                                </div>
+                                <h1 className="text-3xl font-bold text-white">CraneLogger</h1>
+                                <p className="text-gray-400 mt-2">Industrial Maintenance System</p>
+                            </div>
+                            
+                            <form onSubmit={handleAuth} className="space-y-4">
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3 text-gray-500"><Icons.User /></div>
+                                    <input 
+                                        type="email" 
+                                        placeholder="Email address" 
+                                        className="w-full bg-industrial-900/50 border border-industrial-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-industrial-accent"
+                                        value={authForm.email}
+                                        onChange={e => setAuthForm({...authForm, email: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3 text-gray-500"><Icons.Lock /></div>
+                                    <input 
+                                        type="password" 
+                                        placeholder="Password" 
+                                        className="w-full bg-industrial-900/50 border border-industrial-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-industrial-accent"
+                                        value={authForm.password}
+                                        onChange={e => setAuthForm({...authForm, password: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                
+                                {authError && (
+                                    <div className="text-red-400 text-sm bg-red-900/20 p-3 rounded border border-red-900/50 flex items-center gap-2">
+                                        <Icons.AlertTriangle /> {authError}
+                                    </div>
+                                )}
+                                
+                                <Button type="submit" className="w-full py-3 text-lg">
+                                    {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                                </Button>
+                            </form>
+                            
+                            <div className="mt-6 text-center text-sm text-gray-400">
+                                {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                                <button 
+                                    onClick={() => {
+                                        setAuthMode(authMode === 'login' ? 'register' : 'login');
+                                        setAuthError('');
+                                    }}
+                                    className="text-industrial-accent hover:underline font-medium"
+                                >
+                                    {authMode === 'login' ? 'Register' : 'Sign In'}
+                                </button>
+                            </div>
 
-        // Initialize App
-        initTable();
+                            {/* Demo credentials hint */}
+                            <div className="mt-6 pt-4 border-t border-industrial-700/50 text-center">
+                                <p className="text-xs text-gray-500 mb-2">Demo Account:</p>
+                                <p className="text-xs text-gray-600 font-mono">demo@crane.com / demo123</p>
+                            </div>
+                        </div>
+                        
+                        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex h-screen bg-industrial-900 text-gray-200 overflow-hidden">
+                    {/* Sidebar */}
+                    <aside className="w-80 bg-industrial-800 border-r border-industrial-700 flex flex-col shadow-xl z-20">
+                        <div className="p-6 border-b border-industrial-700">
+                            <div className="flex items-center gap-3 mb-1">
+                                <div className="w-8 h-8 bg-industrial-accent rounded flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
+                                    <Icons.Activity />
+                                </div>
+                                <h1 className="text-xl font-bold text-white">CraneLogger</h1>
+                            </div>
+                            <p className="text-xs text-gray-500 ml-11">v2.1.0</p>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <Button onClick={() => openCraneModal()} className="w-full">
+                                <Icons.Plus /> Add New Crane
+                            </Button>
+                            <div className="relative">
+                                <div className="absolute left-3 top-2.5 text-gray-500"><Icons.Search /></div>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search fleet..." 
+                                    className="w-full bg-industrial-900 border border-industrial-700 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:border-industrial-accent"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+                            {filteredCranes.length === 0 ? (
+                                <div className="text-center text-gray-500 mt-10 text-sm p-4">
+                                    {searchTerm ? 'No cranes match your search' : 'No cranes yet. Add your first!'}
+                                </div>
+                            ) : (
+                                filteredCranes.map(crane => (
+                                    <button
+                                        key={crane.id}
+                                        onClick={() => setSelectedCrane(crane)}
+                                        className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                                            selectedCrane?.id === crane.id 
+                                            ? 'bg-industrial-accent/10 border border-industrial-accent/50 text-white shadow-lg shadow-blue-500/10' 
+                                            : 'hover:bg-industrial-700/50 text-gray-400 hover:text-gray-200 border border-transparent'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-semibold truncate">{crane.name}</span>
+                                            {selectedCrane?.id === crane.id && (
+                                                <div className="w-2 h-2 rounded-full bg-industrial-accent animate-pulse"></div>
+                                            )}
+                                        </div>
+                                        <div className="text-xs opacity-70 truncate mt-0.5">
+                                            {crane.make || 'Unknown make'} • {crane.craneType || 'Unknown type'}
+                                        </div>
+                                        {crane.events?.length > 0 && (
+                                            <div className="flex gap-2 mt-2">
+                                                {crane.events.some(e => e.type === 'breakdown') && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+                                                        {crane.events.filter(e => e.type === 'breakdown').length} issues
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">
+                                                    {crane.events.length} logs
+                                                </span>
+                                            </div>
+                                        )}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-industrial-700 bg-industrial-800/50">
+                            <div className="flex items-center gap-2 text-sm text-gray-400 mb-3 overflow-hidden">
+                                <div className="w-8 h-8 rounded-full bg-industrial-700 flex items-center justify-center shrink-0">
+                                    <Icons.User />
+                                </div>
+                                <span className="truncate text-xs">{user.email}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button onClick={handleLogout} variant="ghost" className="flex-1 text-xs py-1.5 border border-industrial-700">
+                                    <Icons.LogOut /> Logout
+                                </Button>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col h-full overflow-hidden">
+                        {!selectedCrane ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8">
+                                <div className="w-24 h-24 bg-industrial-800 rounded-full flex items-center justify-center mb-6 border border-industrial-700 shadow-inner">
+                                    <Icons.Activity />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-300 mb-2 text-center">Select a Crane</h2>
+                                <p className="max-w-md text-center text-sm">
+                                    Choose a crane from the sidebar to view maintenance logs, technical specifications, and history.
+                                </p>
+                                <Button onClick={() => openCraneModal()} variant="secondary" className="mt-6">
+                                    <Icons.Plus /> Add Your First Crane
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
+                                {/* Header */}
+                                <header className="bg-industrial-800/80 backdrop-blur-md border-b border-industrial-700 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                                            <h2 className="text-2xl sm:text-3xl font-bold text-white truncate">{selectedCrane.name}</h2>
+                                            {selectedCrane.rating && (
+                                                <span className="px-2 py-0.5 rounded text-xs font-mono bg-industrial-700 text-gray-300 border border-industrial-600 shrink-0">
+                                                    {selectedCrane.rating}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-industrial-accent font-medium text-sm sm:text-base">
+                                            {selectedCrane.make || 'Unknown manufacturer'} • {selectedCrane.craneType || 'Unknown type'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2 sm:gap-3 shrink-0">
+                                        <Button onClick={() => openEventModal()} variant="primary" className="text-sm sm:text-base">
+                                            <Icons.Plus /> Log Event
+                                        </Button>
+                                        <Button onClick={() => openCraneModal(selectedCrane)} variant="secondary" className="text-sm sm:text-base">
+                                            <Icons.Edit2 /> Edit
+                                        </Button>
+                                    </div>
+                                </header>
+
+                                {/* Content Grid */}
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                                        
+                                        {/* Left: Specs */}
+                                        <div className="lg:col-span-1 space-y-6">
+                                            <div className="glass-panel rounded-xl p-6 border border-industrial-700">
+                                                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2 border-b border-industrial-700 pb-2">
+                                                    <Icons.FileText /> Technical Specs
+                                                </h3>
+                                                <div className="space-y-4 text-sm">
+                                                    <InfoRow label="Motion Type" value={selectedCrane.motionType} />
+                                                    <InfoRow label="Maintenance Schedule" value={selectedCrane.maintenanceSchedule} />
+                                                    <InfoRow label="Lubrication Schedule" value={selectedCrane.lubricationSchedule} />
+                                                    
+                                                    <div className="pt-4 border-t border-industrial-700/50">
+                                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Motor & Drive Data</h4>
+                                                        <div className="text-gray-300 bg-industrial-900/50 p-3 rounded-lg border border-industrial-700/50 min-h-[60px]">
+                                                            {selectedCrane.motorDriveData ? (
+                                                                <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed">{selectedCrane.motorDriveData}</p>
+                                                            ) : (
+                                                                <span className="text-gray-600 italic text-xs">No data recorded</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">PLC Data</h4>
+                                                        <div className="text-gray-300 bg-industrial-900/50 p-3 rounded-lg border border-industrial-700/50 min-h-[60px]">
+                                                            {selectedCrane.plcData ? (
+                                                                <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed">{selectedCrane.plcData}</p>
+                                                            ) : (
+                                                                <span className="text-gray-600 italic text-xs">No data recorded</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {selectedCrane.otherNotes && (
+                                                        <div>
+                                                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Additional Notes</h4>
+                                                            <p className="text-gray-300 text-sm italic bg-industrial-900/30 p-3 rounded border border-industrial-700/30">
+                                                                {selectedCrane.otherNotes}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Right: History */}
+                                        <div className="lg:col-span-2 space-y-6">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                                    <Icons.Activity /> Event History
+                                                    <span className="text-sm font-normal text-gray-500 ml-2">
+                                                        ({filteredEvents.length} {filteredEvents.length === 1 ? 'entry' : 'entries'})
+                                                    </span>
+                                                </h3>
+                                                
+                                                <div className="flex items-center gap-2 bg-industrial-800 p-1 rounded-lg border border-industrial-700 flex-wrap">
+                                                    <button 
+                                                        onClick={() => setShowBreakdowns(!showBreakdowns)}
+                                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${showBreakdowns ? 'bg-red-500/20 text-red-400' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    >
+                                                        <div className={`w-2 h-2 rounded-full ${showBreakdowns ? 'bg-red-500' : 'bg-gray-600'}`}></div>
+                                                        Breakdowns
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setShowMaintenance(!showMaintenance)}
+                                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${showMaintenance ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    >
+                                                        <div className={`w-2 h-2 rounded-full ${showMaintenance ? 'bg-blue-500' : 'bg-gray-600'}`}></div>
+                                                        Maintenance
+                                                    </button>
+                                                    <div className="w-px h-4 bg-industrial-700 mx-1 hidden sm:block"></div>
+                                                    <button 
+                                                        onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
+                                                        className="p-1.5 text-gray-400 hover:text-white rounded-md hover:bg-industrial-700"
+                                                        title={isHistoryCollapsed ? "Expand" : "Collapse"}
+                                                    >
+                                                        {isHistoryCollapsed ? <Icons.ChevronDown /> : <Icons.ChevronUp />}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {!isHistoryCollapsed && (
+                                                <div className="space-y-4">
+                                                    {filteredEvents.length === 0 ? (
+                                                        <div className="text-center py-12 bg-industrial-800/30 rounded-xl border border-dashed border-industrial-700">
+                                                            <p className="text-gray-500 mb-2">No events match current filters.</p>
+                                                            <Button onClick={() => openEventModal()} variant="ghost" className="text-sm">
+                                                                <Icons.Plus /> Log your first event
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        filteredEvents.map(event => (
+                                                            <EventCard key={event.id} event={event} onEdit={() => openEventModal(event)} />
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Modals */}
+                    {isCraneModalOpen && (
+                        <Modal onClose={() => setIsCraneModalOpen(false)} title={isEditingCrane ? 'Edit Crane Specifications' : 'Register New Crane'}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                                <Input label="Crane Name" id="name" value={craneForm.name || ''} onChange={e => setCraneForm({...craneForm, name: e.target.value})} placeholder="e.g., EOT Crane 01" required />
+                                <Input label="Manufacturer / Make" id="make" value={craneForm.make || ''} onChange={e => setCraneForm({...craneForm, make: e.target.value})} placeholder="e.g., Konecranes" />
+                                <Input label="Crane Type" id="craneType" value={craneForm.craneType || ''} onChange={e => setCraneForm({...craneForm, craneType: e.target.value})} placeholder="e.g., Double Girder" />
+                                <Input label="Motion Type" id="motionType" value={craneForm.motionType || ''} onChange={e => setCraneForm({...craneForm, motionType: e.target.value})} placeholder="e.g., Electric" />
+                                <Input label="Load Rating" id="rating" value={craneForm.rating || ''} onChange={e => setCraneForm({...craneForm, rating: e.target.value})} placeholder="e.g., 10 Ton" />
+                                <Input label="Maintenance Schedule" id="maintenanceSchedule" value={craneForm.maintenanceSchedule || ''} onChange={e => setCraneForm({...craneForm, maintenanceSchedule: e.target.value})} placeholder="e.g., Quarterly" />
+                                <Input label="Lubrication Schedule" id="lubricationSchedule" value={craneForm.lubricationSchedule || ''} onChange={e => setCraneForm({...craneForm, lubricationSchedule: e.target.value})} placeholder="e.g., Monthly" />
+                            </div>
+                            <Textarea label="Motor Drive Data" id="motorDriveData" value={craneForm.motorDriveData || ''} onChange={e => setCraneForm({...craneForm, motorDriveData: e.target.value})} placeholder="Enter motor specifications, drive details..." rows={3} />
+                            <Textarea label="PLC Data" id="plcData" value={craneForm.plcData || ''} onChange={e => setCraneForm({...craneForm, plcData: e.target.value})} placeholder="PLC model, program version, I/O details..." rows={3} />
+                            <Textarea label="Other Notes" id="otherNotes" value={craneForm.otherNotes || ''} onChange={e => setCraneForm({...craneForm, otherNotes: e.target.value})} placeholder="Any additional relevant information..." rows={2} />
+                            
+                            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-industrial-700 mt-4">
+                                {isEditingCrane && (
+                                    <Button onClick={() => handleDeleteCrane(craneForm.id)} variant="danger" className="order-2 sm:order-1">
+                                        <Icons.Trash2 /> Delete Crane
+                                    </Button>
+                                )}
+                                <div className="flex gap-2 ml-auto order-1 sm:order-2">
+                                    <Button onClick={() => setIsCraneModalOpen(false)} variant="ghost">Cancel</Button>
+                                    <Button onClick={handleSaveCrane} variant="primary"><Icons.Save /> Save Specifications</Button>
+                                </div>
+                            </div>
+                        </Modal>
+                    )}
+
+                    {isEventModalOpen && (
+                        <Modal onClose={() => setIsEventModalOpen(false)} title={isEditingEvent ? 'Edit Event Log' : 'Log New Event'}>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Select label="Event Type" id="type" value={eventForm.type} onChange={e => setEventForm({...eventForm, type: e.target.value})}>
+                                    <option value="breakdown">🔴 Breakdown</option>
+                                    <option value="maintenance">🔵 Maintenance</option>
+                                </Select>
+                                <Input label="Date" id="date" type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} required />
+                                <Input label="Time" id="time" type="time" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required />
+                            </div>
+                            
+                            <Select label="Shift" id="shift" value={eventForm.shift} onChange={e => setEventForm({...eventForm, shift: e.target.value})} required>
+                                <option value="">Select Shift...</option>
+                                <option value="A">Shift A (Morning)</option>
+                                <option value="B">Shift B (Afternoon)</option>
+                                <option value="C">Shift C (Night)</option>
+                                <option value="G">General / Overhaul</option>
+                            </Select>
+
+                            <Textarea label="Description" id="description" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder={eventForm.type === 'breakdown' ? "Describe the issue, symptoms, and impact..." : "Describe the maintenance work performed..."} rows={4} required />
+                            
+                            {eventForm.type === 'breakdown' && (
+                                <Textarea label="Resolution" id="resolution" value={eventForm.resolution} onChange={e => setEventForm({...eventForm, resolution: e.target.value})} placeholder="Steps taken to resolve the breakdown, parts replaced..." rows={3} />
+                            )}
+
+                            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-industrial-700 mt-4">
+                                {isEditingEvent && (
+                                    <Button onClick={handleDeleteEvent} variant="danger" className="order-2 sm:order-1">
+                                        <Icons.Trash2 /> Delete Log
+                                    </Button>
+                                )}
+                                <div className="flex gap-2 ml-auto order-1 sm:order-2">
+                                    <Button onClick={() => setIsEventModalOpen(false)} variant="ghost">Cancel</Button>
+                                    <Button onClick={handleSaveEvent} variant="primary"><Icons.Save /> {isEditingEvent ? 'Update Log' : 'Save Log'}</Button>
+                                </div>
+                            </div>
+                        </Modal>
+                    )}
+
+                    {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+                </div>
+            );
+        };
+
+        const InfoRow = ({ label, value }) => {
+            if (!value) return null;
+            return (
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:gap-4 border-b border-industrial-700/30 pb-2 last:border-0 last:pb-0">
+                    <span className="text-gray-500 text-xs uppercase font-bold tracking-wider shrink-0">{label}</span>
+                    <span className="text-gray-200 font-medium text-right break-words">{value}</span>
+                </div>
+            );
+        };
+
+        const EventCard = ({ event, onEdit }) => {
+            const isBreakdown = event.type === 'breakdown';
+            const dateObj = new Date(event.timestamp);
+            
+            const formatDate = (date) => {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            };
+            
+            const formatTime = (date) => {
+                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            };
+            
+            return (
+                <div className="glass-panel rounded-xl overflow-hidden border-l-4 transition-all hover:translate-x-1 duration-200 group" style={{ borderLeftColor: isBreakdown ? '#ef4444' : '#3b82f6' }}>
+                    <div className="p-4 flex flex-col sm:flex-row gap-4">
+                        {/* Icon & Date Block */}
+                        <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:w-32 shrink-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isBreakdown ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                {isBreakdown ? <Icons.AlertTriangle /> : <Icons.Wrench />}
+                            </div>
+                            <div className="text-sm sm:text-center">
+                                <div className="font-bold text-white">{formatDate(dateObj)}</div>
+                                <div className="text-gray-500 text-xs flex items-center sm:justify-center gap-1 mt-0.5">
+                                    <Icons.Clock className="w-3 h-3" /> {formatTime(dateObj)}
+                                </div>
+                                <div className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-industrial-700 text-gray-300 uppercase tracking-wider border border-industrial-600">
+                                    {event.shift} Shift
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2 mb-2">
+                                <h4 className={`font-bold text-lg ${isBreakdown ? 'text-red-400' : 'text-blue-400'}`}>
+                                    {isBreakdown ? 'Breakdown Report' : 'Maintenance Record'}
+                                </h4>
+                                <button 
+                                    onClick={onEdit} 
+                                    className="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/10 rounded shrink-0"
+                                    title="Edit event"
+                                >
+                                    <Icons.Edit2 />
+                                </button>
+                            </div>
+                            
+                            <div className="bg-industrial-900/50 rounded-lg p-3 border border-industrial-700/50 mb-3">
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{event.description}</p>
+                            </div>
+
+                            {isBreakdown && event.resolution && (
+                                <div className="mt-2">
+                                    <span className="text-xs font-bold text-green-500 uppercase tracking-wider mb-1 block flex items-center gap-1">
+                                        <Icons.Check className="w-3 h-3" /> Resolution
+                                    </span>
+                                    <p className="text-gray-400 text-sm border-l-2 border-green-500/30 pl-3 whitespace-pre-wrap">
+                                        {event.resolution}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
